@@ -73,7 +73,7 @@ bash run_preprocess.sh
 - Sample 15 prompts from one high-severity MM-SafetyBench category using the fixed seed. Save prompt IDs and text to `data/processed/prompts.json`.
 - Select 3 COCO val2017 seed images (indoor, outdoor, object-centered). Save metadata to `data/processed/images.json`. Copy images to `data/processed/seed_images/`.
 - Generate all 45 prompt–image pairs. Save to `data/processed/eval_pairs.json`.
-- Verify model loads in fp16, gradients flow through image input, and print peak GPU memory.
+- Verify model loads in fp16 and gradients flow through image input.
 
 **Figures:**
 - `prompt_length_distribution.png` — histogram of prompt token lengths.
@@ -91,9 +91,9 @@ bash run_pilot.sh
 - Run a small pilot using 3 prompts × 1 image = 3 pairs (first 3 prompts and first seed image from `data/processed/`).
 - Run PGD at both ε budgets on the 3 pilot pairs. Record loss at every step.
 - Verify PGD loss stabilizes across steps.
-- Log peak GPU memory and per-trial runtime. Print a summary confirming the setup is feasible on one A100.
+- Print a concise summary confirming the setup is feasible.
 - For each pilot pair, compare the clean response with the PGD-perturbed response. Check whether optimizing the surrogate target ("Sure, here is") tends to move outputs toward more compliant behavior rather than merely changing surface style.
-- Save pilot results to `results/pilot/` (loss curves, timing, responses).
+- Save pilot results to `results/pilot/` (loss curves and responses).
 - After the pilot, all main experiment choices are frozen. Do not use pilot results to tune attack settings.
 
 **Figures:**
@@ -113,7 +113,7 @@ bash run_experiment.sh
 - For each trial: generate perturbed image, run greedy decoding, compute LPIPS. Optionally compute SSIM and PSNR as supplementary metrics.
 - Save perturbed images to `results/images/`, responses to `results/outputs/responses.json`, distortion metrics (LPIPS, and optionally SSIM/PSNR) to `results/metrics/distortion.csv`.
 - Checkpoint after each condition block (45 trials). Resume from last completed block on restart.
-- Log progress per trial with timing.
+- Log progress per trial.
 
 **Figures:**
 - `pgd_loss_curves.png` — PGD loss vs. step for a few representative pairs, one line per ε.

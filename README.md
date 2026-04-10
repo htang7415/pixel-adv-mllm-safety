@@ -11,7 +11,7 @@ Under a strict visual distortion budget, can iterative pixel-space adversarial p
 ### Requirements
 
 - Python 3.10+
-- 1x NVIDIA A100 GPU (fp16 inference)
+- A CUDA-capable GPU or equivalent accelerator for fp16 inference
 - ~20 GB disk for model weights and outputs
 
 ### Install dependencies

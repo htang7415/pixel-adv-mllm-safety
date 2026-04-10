@@ -10,7 +10,7 @@ Under a strict visual distortion budget, can iterative pixel-space adversarial p
 
 ## 3. Scope
 
-The project is intentionally narrow to fit one A100 GPU and to keep the protocol clean. The study uses one victim model, one attack family, one prompt source, one fixed image set, and deterministic decoding. There is no model training, no fine-tuning, no latent-space attack, no universal perturbation, no defense module, and no cross-model transfer study.
+The project is intentionally narrow to fit limited compute and to keep the protocol clean. The study uses one victim model, one attack family, one prompt source, one fixed image set, and deterministic decoding. There is no model training, no fine-tuning, no latent-space attack, no universal perturbation, no defense module, and no cross-model transfer study.
 
 ## 4. Dataset
 
@@ -36,7 +36,7 @@ The 3-image design provides pair-level variation, but it is not sufficient to cl
 
 ## 5. Victim Model
 
-The victim model will be **LLaVA-1.5-7B** with a fixed checkpoint and fixed preprocessing pipeline. Inference will run on a single A100 using fp16 or bf16. Only the input image is perturbed. The text prompt remains unchanged.  HuggingFace(transformers)
+The victim model will be **LLaVA-1.5-7B** with a fixed checkpoint and fixed preprocessing pipeline. Inference will run with fp16 or bf16 on a single accelerator. Only the input image is perturbed. The text prompt remains unchanged.  HuggingFace(transformers)
 
 ## 6. Generation Protocol
 
@@ -84,7 +84,7 @@ The PGD attack will use **50 steps** with step size
 
 $$\alpha = \epsilon / 10$$
 
-These values are small enough to remain visually subtle and light enough for one A100.
+These values are small enough to remain visually subtle and light enough for a limited-compute setup.
 
 ## 8. Baselines
 
@@ -134,7 +134,7 @@ The threshold $\tau$ will be fixed before the pilot and will not be changed afte
 
 ## 10. Pilot Study
 
-A very small pilot will be run only to confirm feasibility and sanity-check the setup. The pilot will use **3 prompts and 1 image**. It will check whether the PGD loss stabilizes, whether memory and runtime are acceptable on one A100, and whether the surrogate target prefix appears to correlate with more compliant final responses under the chosen rubric. The pilot will not be used to repeatedly tune many attack settings. After the pilot, all main experiment choices will be frozen.
+A very small pilot will be run only to confirm feasibility and sanity-check the setup. The pilot will use **3 prompts and 1 image**. It will check whether the PGD loss stabilizes and whether the surrogate target prefix appears to correlate with more compliant final responses under the chosen rubric. The pilot will not be used to repeatedly tune many attack settings. After the pilot, all main experiment choices will be frozen.
 
 ## 11. Experimental Design
 
@@ -160,7 +160,7 @@ Results will be reported at the pair level. The final report will include ASR fo
 
 ## 13. Reproducibility
 
-The final report will fix and disclose the following items: MM-SafetyBench version, prompt IDs, COCO image IDs, victim checkpoint, preprocessing resolution, decoding settings, max new tokens, epsilon budgets, PGD steps, step size, LPIPS implementation, random seed, software environment, and GPU type.
+The final report will fix and disclose the following items: MM-SafetyBench version, prompt IDs, COCO image IDs, victim checkpoint, preprocessing resolution, decoding settings, max new tokens, epsilon budgets, PGD steps, step size, LPIPS implementation, random seed, and dependency versions.
 
 ## 14. What the Project Will Not Do
 

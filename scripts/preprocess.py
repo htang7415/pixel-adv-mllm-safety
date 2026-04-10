@@ -8,92 +8,32 @@ Step 1: Preprocess
 """
 
 import json
-import os
 import random
 import shutil
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
-import yaml
 from PIL import Image
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def load_config(path="config.yaml"):
-    with open(path) as f:
-        return yaml.safe_load(f)
-
-
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+from _common import (
+    PALETTE,
+    apply_style,
+    compute_surrogate_cross_entropy,
+    freeze_model,
+    get_target_ids,
+    load_config,
+    pil_to_tensor,
+    prepare_prompt_inputs,
+    savefig,
+    set_seed,
+)
 
 
-# ── Figure style ──────────────────────────────────────────────────────────────
-
-PALETTE = ["#4C72B0", "#DD8452", "#55A868", "#C44E52",
-           "#8172B3", "#937860", "#DA8BC3"]
-
-def apply_style(ax):
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.grid(True, alpha=0.3)
-    ax.tick_params(labelsize=14)
-
-
-def savefig(fig, path):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    fig.savefig(path, dpi=600, bbox_inches="tight")
-    plt.close(fig)
-    print(f"  Saved figure: {path}")
-
-
-# ── 1. Sample prompts ────────────────────────────────────────────────────────
-
-def sample_prompts(cfg):
-    cat_file = os.path.join(
-        cfg["data_dir"], "MM-SafetyBench", "data", "processed_questions",
-        f"{cfg['prompt_category']}.json"
-    )
-    with open(cat_file) as f:
-        data = json.load(f)
-
-    ids = sorted(data.keys(), key=int)
-    sampled = random.sample(ids, cfg["num_prompts"])
-    sampled.sort(key=int)
-
-    prompts = []
-    for pid in sampled:
-        entry = data[pid]
-        prompts.append({
-            "prompt_id": pid,
-            "category": cfg["prompt_category"],
-            "question": entry["Changed Question"],
-        })
-
-    out_dir = os.path.join(cfg["data_dir"], "processed")
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "prompts.json")
-    with open(out_path, "w") as f:
-        json.dump(prompts, f, indent=2)
-    print(f"Saved {len(prompts)} prompts to {out_path}")
-    return prompts
-
-
-# ── 2. Select seed images ────────────────────────────────────────────────────
-
-# Hand-picked COCO val2017 IDs for three scene types:
-#   indoor  : 000000000139 (living room scene)
-#   outdoor : 000000000285 (outdoor scene with animals)
-#   object  : 000000000632 (object-centered scene)
 SEED_IMAGE_IDS = [
     {"coco_id": "000000000139", "scene_type": "indoor"},
     {"coco_id": "000000000285", "scene_type": "outdoor"},
@@ -101,126 +41,161 @@ SEED_IMAGE_IDS = [
 ]
 
 
+def sample_prompts(cfg):
+    processed_dir = Path(cfg["data_dir"]) / "MM-SafetyBench" / "data" / "processed_questions"
+    category_path = processed_dir / f"{cfg['prompt_category']}.json"
+    with category_path.open() as f:
+        data = json.load(f)
+
+    prompt_ids = sorted(data.keys(), key=int)
+    if cfg["num_prompts"] > len(prompt_ids):
+        raise ValueError(
+            f"Requested {cfg['num_prompts']} prompts but only found {len(prompt_ids)} in {category_path}"
+        )
+
+    sampled_ids = sorted(random.sample(prompt_ids, cfg["num_prompts"]), key=int)
+
+    prompts = []
+    for prompt_id in sampled_ids:
+        entry = data[prompt_id]
+        prompts.append(
+            {
+                "prompt_id": prompt_id,
+                "category": cfg["prompt_category"],
+                "question": entry["Changed Question"],
+            }
+        )
+
+    out_dir = Path(cfg["data_dir"]) / "processed"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "prompts.json"
+    with out_path.open("w") as f:
+        json.dump(prompts, f, indent=2)
+    print(f"Saved {len(prompts)} prompts to {out_path}")
+    return prompts
+
+
 def select_images(cfg):
-    coco_dir = os.path.join(cfg["data_dir"], "coco", "val2017")
-    out_dir = os.path.join(cfg["data_dir"], "processed", "seed_images")
-    os.makedirs(out_dir, exist_ok=True)
+    if cfg["num_images"] > len(SEED_IMAGE_IDS):
+        raise ValueError(
+            f"Requested {cfg['num_images']} seed images but only {len(SEED_IMAGE_IDS)} are curated."
+        )
 
+    coco_dir = Path(cfg["data_dir"]) / "coco" / "val2017"
+    out_dir = Path(cfg["data_dir"]) / "processed" / "seed_images"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    selected = SEED_IMAGE_IDS[: cfg["num_images"]]
     images = []
-    for entry in SEED_IMAGE_IDS:
-        src = os.path.join(coco_dir, f"{entry['coco_id']}.jpg")
-        if not os.path.exists(src):
+    for entry in selected:
+        src = coco_dir / f"{entry['coco_id']}.jpg"
+        if not src.exists():
             raise FileNotFoundError(f"COCO image not found: {src}")
-        dst = os.path.join(out_dir, f"{entry['coco_id']}.jpg")
+        dst = out_dir / src.name
         shutil.copy2(src, dst)
-        images.append({
-            "coco_id": entry["coco_id"],
-            "scene_type": entry["scene_type"],
-            "path": dst,
-        })
+        images.append(
+            {
+                "coco_id": entry["coco_id"],
+                "scene_type": entry["scene_type"],
+                "path": str(dst),
+            }
+        )
 
-    meta_path = os.path.join(cfg["data_dir"], "processed", "images.json")
-    with open(meta_path, "w") as f:
+    meta_path = Path(cfg["data_dir"]) / "processed" / "images.json"
+    with meta_path.open("w") as f:
         json.dump(images, f, indent=2)
     print(f"Saved {len(images)} image metadata to {meta_path}")
     return images
 
 
-# ── 3. Generate evaluation pairs ─────────────────────────────────────────────
-
 def generate_pairs(prompts, images, cfg):
     pairs = []
     pair_id = 0
-    for p in prompts:
-        for img in images:
-            pairs.append({
-                "pair_id": pair_id,
-                "prompt_id": p["prompt_id"],
-                "question": p["question"],
-                "coco_id": img["coco_id"],
-                "scene_type": img["scene_type"],
-                "image_path": img["path"],
-            })
+    for prompt in prompts:
+        for image in images:
+            pairs.append(
+                {
+                    "pair_id": pair_id,
+                    "prompt_id": prompt["prompt_id"],
+                    "question": prompt["question"],
+                    "coco_id": image["coco_id"],
+                    "scene_type": image["scene_type"],
+                    "image_path": image["path"],
+                }
+            )
             pair_id += 1
 
-    out_path = os.path.join(cfg["data_dir"], "processed", "eval_pairs.json")
-    with open(out_path, "w") as f:
+    out_path = Path(cfg["data_dir"]) / "processed" / "eval_pairs.json"
+    with out_path.open("w") as f:
         json.dump(pairs, f, indent=2)
     print(f"Saved {len(pairs)} eval pairs to {out_path}")
     return pairs
 
 
-# ── 4. Verify model ──────────────────────────────────────────────────────────
+def verify_model(cfg, processor, model, image_meta):
+    image = Image.open(image_meta["path"]).convert("RGB")
+    question = "Describe this image."
+    prompt_inputs = prepare_prompt_inputs(processor, question, image, model.device)
+    target_ids = get_target_ids(processor, cfg["surrogate_target"], model.device)
+    raw_image = pil_to_tensor(image).to(model.device).requires_grad_(True)
 
-def verify_model(cfg, images):
-    print(f"\nLoading model: {cfg['model']} ...")
-    processor = AutoProcessor.from_pretrained(cfg["model"])
-    model = LlavaForConditionalGeneration.from_pretrained(
-        cfg["model"], torch_dtype=torch.float16, device_map="auto",
+    model.zero_grad(set_to_none=True)
+    loss = compute_surrogate_cross_entropy(
+        model,
+        processor,
+        raw_image,
+        prompt_inputs["input_ids"],
+        prompt_inputs["attention_mask"],
+        target_ids,
     )
-    model.eval()
-
-    # Check gradient flow through image input
-    img = Image.open(images[0]["path"]).convert("RGB")
-    prompt_text = "USER: <image>\nDescribe this image.\nASSISTANT:"
-    inputs = processor(text=prompt_text, images=img, return_tensors="pt")
-    inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
-    # Enable gradients on pixel values
-    pixel_values = inputs["pixel_values"].clone().detach().requires_grad_(True)
-    inputs["pixel_values"] = pixel_values
-
-    outputs = model(**inputs, labels=inputs["input_ids"])
-    loss = outputs.loss
     loss.backward()
 
-    grad_norm = pixel_values.grad.norm().item()
+    grad_norm = raw_image.grad.norm().item()
+    if grad_norm <= 0:
+        raise AssertionError("Gradients do not flow through the raw image input.")
+
     print(f"  Loss: {loss.item():.4f}")
-    print(f"  Gradient norm on pixel_values: {grad_norm:.6f}")
-    assert grad_norm > 0, "Gradients do not flow through image input!"
-    print("  Gradient flow verified.")
-
-    peak_mem = torch.cuda.max_memory_allocated() / 1e9
-    print(f"  Peak GPU memory: {peak_mem:.2f} GB")
-
-    del model, processor
-    torch.cuda.empty_cache()
-    return peak_mem
-
-
-# ── 5. Figures ────────────────────────────────────────────────────────────────
-
-def fig_prompt_length_distribution(prompts, cfg):
-    """Histogram of prompt token lengths (word-level tokenization as proxy)."""
-    lengths = [len(p["question"].split()) for p in prompts]
+    print(f"  Gradient norm on raw image: {grad_norm:.6f}")
+    print("  Gradient flow verified through raw RGB image input.")
+def fig_prompt_length_distribution(prompts, processor, cfg):
+    lengths = [
+        len(processor.tokenizer(prompt["question"], add_special_tokens=False)["input_ids"])
+        for prompt in prompts
+    ]
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    ax.hist(lengths, bins=range(min(lengths), max(lengths) + 2),
-            color=PALETTE[0], edgecolor="white", alpha=0.85)
-    ax.set_xlabel("Prompt length (words)", fontsize=16)
+    ax.hist(
+        lengths,
+        bins=range(min(lengths), max(lengths) + 2),
+        color=PALETTE[0],
+        edgecolor="white",
+        alpha=0.85,
+    )
+    ax.set_xlabel("Prompt length (tokens)", fontsize=16)
     ax.set_ylabel("Count", fontsize=16)
     apply_style(ax)
-    savefig(fig, os.path.join(cfg["output_dir"], "figures",
-                              "prompt_length_distribution.png"))
+    savefig(fig, Path(cfg["output_dir"]) / "figures" / "prompt_length_distribution.png")
+    plt.close(fig)
 
 
 def fig_seed_images_grid(images, cfg):
-    """1x3 grid of seed images with scene-type labels."""
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    for ax, img_meta in zip(axes, images):
-        img = Image.open(img_meta["path"]).convert("RGB")
-        ax.imshow(img)
-        ax.set_xlabel(img_meta["scene_type"], fontsize=16)
+    fig, axes = plt.subplots(1, len(images), figsize=(5 * len(images), 5))
+    if len(images) == 1:
+        axes = [axes]
+
+    for ax, image_meta in zip(axes, images):
+        image = Image.open(image_meta["path"]).convert("RGB")
+        ax.imshow(image)
+        ax.set_xlabel(image_meta["scene_type"], fontsize=16)
         ax.set_xticks([])
         ax.set_yticks([])
         for spine in ax.spines.values():
             spine.set_visible(False)
+
     fig.tight_layout()
-    savefig(fig, os.path.join(cfg["output_dir"], "figures",
-                              "seed_images_grid.png"))
+    savefig(fig, Path(cfg["output_dir"]) / "figures" / "seed_images_grid.png")
+    plt.close(fig)
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
     cfg = load_config()
@@ -239,11 +214,21 @@ def main():
     print("\n[3/5] Generating evaluation pairs ...")
     pairs = generate_pairs(prompts, images, cfg)
 
-    print("\n[4/5] Verifying model ...")
-    peak_mem = verify_model(cfg, images)
+    print(f"\n[4/5] Loading processor/model: {cfg['model']} ...")
+    processor = AutoProcessor.from_pretrained(cfg["model"])
+    model = LlavaForConditionalGeneration.from_pretrained(
+        cfg["model"],
+        torch_dtype=torch.float16,
+        device_map="auto",
+    )
+    model.eval()
+    freeze_model(model)
+
+    print("\nVerifying raw-image gradient flow ...")
+    verify_model(cfg, processor, model, images[0])
 
     print("\n[5/5] Generating figures ...")
-    fig_prompt_length_distribution(prompts, cfg)
+    fig_prompt_length_distribution(prompts, processor, cfg)
     fig_seed_images_grid(images, cfg)
 
     print("\n" + "=" * 60)
@@ -251,7 +236,6 @@ def main():
     print(f"  Prompts:    {len(prompts)}")
     print(f"  Images:     {len(images)}")
     print(f"  Pairs:      {len(pairs)}")
-    print(f"  Peak GPU:   {peak_mem:.2f} GB")
     print("=" * 60)
 
 
