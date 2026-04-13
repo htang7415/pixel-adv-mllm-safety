@@ -109,6 +109,30 @@ def get_model_dtype(model):
         return torch.float16
 
 
+def runtime_device():
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def runtime_model_dtype(device):
+    return torch.float16 if device.type == "cuda" else torch.float32
+
+
+def load_llava_model_and_processor(model_name):
+    from transformers import AutoProcessor, LlavaForConditionalGeneration
+
+    device = runtime_device()
+    dtype = runtime_model_dtype(device)
+
+    processor = AutoProcessor.from_pretrained(model_name)
+    model = LlavaForConditionalGeneration.from_pretrained(
+        model_name,
+        torch_dtype=dtype,
+    )
+    model.to(device)
+    model.eval()
+    return processor, model
+
+
 def reset_peak_memory(device):
     if torch.cuda.is_available():
         try:
@@ -167,6 +191,14 @@ def _normalize_spatial_config(config_value):
         return {"height": int(config_value[0]), "width": int(config_value[1])}
     if isinstance(config_value, dict):
         return {key: int(value) for key, value in config_value.items()}
+    # Handle transformers SizeDict (not a dict subclass)
+    result = {}
+    for attr in ("height", "width", "shortest_edge", "longest_edge"):
+        val = getattr(config_value, attr, None)
+        if val is not None:
+            result[attr] = int(val)
+    if result:
+        return result
     return {}
 
 

@@ -16,7 +16,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 from PIL import Image
-from transformers import AutoProcessor, LlavaForConditionalGeneration
 
 from _common import (
     apply_style,
@@ -24,6 +23,7 @@ from _common import (
     generate_response,
     get_target_ids,
     load_config,
+    load_llava_model_and_processor,
     pgd_attack,
     pil_to_tensor,
     prepare_prompt_inputs,
@@ -119,13 +119,7 @@ def main():
     )
 
     print(f"\nLoading model: {cfg['model']} ...")
-    processor = AutoProcessor.from_pretrained(cfg["model"])
-    model = LlavaForConditionalGeneration.from_pretrained(
-        cfg["model"],
-        torch_dtype=torch.float16,
-        device_map="auto",
-    )
-    model.eval()
+    processor, model = load_llava_model_and_processor(cfg["model"])
     freeze_model(model)
     target_ids = get_target_ids(processor, cfg["surrogate_target"], model.device)
 

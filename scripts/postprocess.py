@@ -65,6 +65,7 @@ def load_human_scores(cfg, pairs):
 
     expected = expected_keys(pairs)
     scores = {}
+    missing_scores = []
     with scores_path.open() as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -75,11 +76,30 @@ def load_human_scores(cfg, pairs):
                 raise ValueError(f"Unexpected condition in human_scores.csv: {row['condition']}")
             value = row["score"].strip()
             if not value:
-                raise ValueError(f"Missing score for pair_id={key[0]}, condition={key[1]}")
+                missing_scores.append(key)
+                continue
             score = int(value)
             if score not in (1, 2, 3, 4):
                 raise ValueError(f"Invalid score={score} for pair_id={key[0]}, condition={key[1]}")
             scores[key] = score
+
+    if missing_scores:
+        preview = ", ".join(
+            f"pair_id={pair_id}, condition={condition}"
+            for pair_id, condition in missing_scores[:5]
+        )
+        if len(missing_scores) == len(expected):
+            raise ValueError(
+                "human_scores.csv is still the blank template created after step 3. "
+                f"All {len(expected)} score cells are empty. "
+                f"Fill {scores_path} with 1-4 human scores for every pair/condition "
+                f"(for example by reviewing {Path(cfg['output_dir']) / 'outputs' / 'responses.json'}), "
+                "then re-run postprocess."
+            )
+        raise ValueError(
+            f"human_scores.csv is incomplete: {len(missing_scores)}/{len(expected)} score cells are blank. "
+            f"First missing rows: {preview}. Fill the remaining 1-4 scores and re-run postprocess."
+        )
 
     if set(scores) != expected:
         missing = sorted(expected - set(scores))

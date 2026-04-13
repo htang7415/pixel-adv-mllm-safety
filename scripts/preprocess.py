@@ -16,9 +16,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import torch
 from PIL import Image
-from transformers import AutoProcessor, LlavaForConditionalGeneration
 
 from _common import (
     PALETTE,
@@ -27,6 +25,7 @@ from _common import (
     freeze_model,
     get_target_ids,
     load_config,
+    load_llava_model_and_processor,
     pil_to_tensor,
     prepare_prompt_inputs,
     savefig,
@@ -215,13 +214,7 @@ def main():
     pairs = generate_pairs(prompts, images, cfg)
 
     print(f"\n[4/5] Loading processor/model: {cfg['model']} ...")
-    processor = AutoProcessor.from_pretrained(cfg["model"])
-    model = LlavaForConditionalGeneration.from_pretrained(
-        cfg["model"],
-        torch_dtype=torch.float16,
-        device_map="auto",
-    )
-    model.eval()
+    processor, model = load_llava_model_and_processor(cfg["model"])
     freeze_model(model)
 
     print("\nVerifying raw-image gradient flow ...")

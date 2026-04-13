@@ -19,7 +19,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 from PIL import Image
-from transformers import AutoProcessor, LlavaForConditionalGeneration
 
 from _common import (
     CONDITION_LABELS,
@@ -32,6 +31,7 @@ from _common import (
     generate_response,
     get_target_ids,
     load_config,
+    load_llava_model_and_processor,
     pgd_attack,
     pil_to_tensor,
     prepare_prompt_inputs,
@@ -302,13 +302,7 @@ def main():
         (output_dir / subdir).mkdir(parents=True, exist_ok=True)
 
     print(f"\nLoading model: {cfg['model']} ...")
-    processor = AutoProcessor.from_pretrained(cfg["model"])
-    model = LlavaForConditionalGeneration.from_pretrained(
-        cfg["model"],
-        torch_dtype=torch.float16,
-        device_map="auto",
-    )
-    model.eval()
+    processor, model = load_llava_model_and_processor(cfg["model"])
     freeze_model(model)
     target_ids = get_target_ids(processor, cfg["surrogate_target"], model.device)
 
@@ -483,6 +477,7 @@ def main():
     print(f"  PGD curves saved:  {pgd_loss_path}")
     if not incomplete_conditions:
         print(f"  Human-score file:  {scores_path}")
+        print("  Next step: fill that CSV with 1-4 human scores for all 315 rows, then run bash run_postprocess.sh.")
         print("  Experiment complete.")
     else:
         print(f"  Incomplete conds:  {', '.join(incomplete_conditions)}")

@@ -1,0 +1,24 @@
+{
+  "latex-workshop.latex.tools": [
+    {
+      "name": "latexmk",
+      "command": "/home/htang228/.TinyTeX/bin/x86_64-linux/latexmk",
+      "args": [
+        "-pdf",
+        "-pdflatex=/home/htang228/.TinyTeX/bin/x86_64-linux/pdflatex",
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        "-file-line-error",
+        "%DOC%"
+      ]
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "latexmk",
+      "tools": [
+        "latexmk"
+      ]
+    }
+  ]
+}

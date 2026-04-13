@@ -1,4 +1,4 @@
-# Evaluating Pixel-Space Adversarial Vulnerabilities in a Multimodal LLM Under Limited Compute
+# Evaluating Pixel-Space Adversarial Vulnerabilities in Multimodal LLM
 
 ## 1. Project Goal
 
