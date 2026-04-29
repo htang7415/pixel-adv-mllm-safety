@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 *.pyo
 writing
+.claude
+.vscode
+RESULTS.md
+/report
+/.*/
