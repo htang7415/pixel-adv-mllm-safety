@@ -129,21 +129,21 @@ success, while keeping mean LPIPS below the 0.1 perceptual threshold.
 ### Figure Summary
 
 <p align="center">
-  <img src="report/report/figures/asr_by_condition.png" alt="Attack success rate by image condition" width="49%">
-  <img src="report/report/figures/paired_changes_vs_clean.png" alt="Paired ASR changes against clean responses" width="49%">
+  <img src="results/figures/asr_by_condition.png" alt="Attack success rate by image condition" width="49%">
+  <img src="results/figures/paired_changes_vs_clean.png" alt="Paired ASR changes against clean responses" width="49%">
 </p>
 
 <p align="center"><em>Left: PGD reduces ASR relative to the high clean baseline. Right: paired comparisons show more degradation than improvement, especially for PGD 8/255.</em></p>
 
 <p align="center">
-  <img src="report/report/figures/score_distribution_by_condition.png" alt="Human harmfulness score distribution by condition" width="49%">
-  <img src="report/report/figures/lpips_distribution.png" alt="LPIPS distribution by perturbation condition" width="49%">
+  <img src="results/figures/score_distribution_by_condition.png" alt="Human harmfulness score distribution by condition" width="49%">
+  <img src="results/figures/lpips_distribution.png" alt="LPIPS distribution by perturbation condition" width="49%">
 </p>
 
 <p align="center"><em>Left: PGD shifts some direct-compliance responses into lower harmfulness scores. Right: PGD 8/255 stays below the 0.1 LPIPS threshold on average, so the negative result is not caused by extreme perceptual distortion.</em></p>
 
 <p align="center">
-  <img src="report/report/figures/pgd_loss_curves.png" alt="PGD surrogate loss curves over optimization steps" width="65%">
+  <img src="results/figures/pgd_loss_curves.png" alt="PGD surrogate loss curves over optimization steps" width="65%">
 </p>
 
 <p align="center"><em>PGD lowers the affirmative-prefix surrogate loss, but this optimization signal does not translate into higher direct harmful-compliance ASR.</em></p>
