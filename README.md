@@ -19,6 +19,19 @@ result is a useful negative finding: in this controlled setting, clean harmful
 prompts already produce high unsafe compliance, and stronger PGD often disrupts
 direct compliance rather than amplifying it.
 
+Most important results:
+
+- Clean prompts already reach 93.3% ASR, so the model is highly vulnerable even
+  without pixel perturbations.
+- Random noise and FGSM do not meaningfully change this high clean baseline.
+- PGD lowers ASR instead of raising it: 82.2% at 4/255 and 68.9% at 8/255.
+- PGD 8/255 is directionally worse than clean in paired analysis: 2 improved
+  pairs, 13 degraded pairs, and 30 unchanged pairs.
+- PGD 8/255 remains visually close by LPIPS, with mean LPIPS 0.0497, so the
+  result is not explained by extreme visible corruption.
+- The core storyline is surrogate mismatch: PGD optimizes the affirmative prefix
+  but does not translate that optimization into more direct harmful compliance.
+
 ## Outline
 
 The experiment isolates pixel-space effects with a fixed prompt, fixed model,
@@ -107,6 +120,33 @@ All stages read shared settings from `config.yaml`.
 The main experiment compares clean images, random noise, FGSM, and targeted PGD
 under two perturbation budgets. The key result is that PGD does not increase
 harmful-compliance ASR over clean responses.
+
+The strongest evidence is the combination of high clean ASR and paired PGD
+degradation. Clean responses are already unsafe in 42 of 45 prompt-image pairs.
+At 8/255, PGD flips only 2 pairs toward success but flips 13 pairs away from
+success, while keeping mean LPIPS below the 0.1 perceptual threshold.
+
+### Figure Summary
+
+<p align="center">
+  <img src="report/report/figures/asr_by_condition.png" alt="Attack success rate by image condition" width="49%">
+  <img src="report/report/figures/paired_changes_vs_clean.png" alt="Paired ASR changes against clean responses" width="49%">
+</p>
+
+<p align="center"><em>Left: PGD reduces ASR relative to the high clean baseline. Right: paired comparisons show more degradation than improvement, especially for PGD 8/255.</em></p>
+
+<p align="center">
+  <img src="report/report/figures/score_distribution_by_condition.png" alt="Human harmfulness score distribution by condition" width="49%">
+  <img src="report/report/figures/lpips_distribution.png" alt="LPIPS distribution by perturbation condition" width="49%">
+</p>
+
+<p align="center"><em>Left: PGD shifts some direct-compliance responses into lower harmfulness scores. Right: PGD 8/255 stays below the 0.1 LPIPS threshold on average, so the negative result is not caused by extreme perceptual distortion.</em></p>
+
+<p align="center">
+  <img src="report/report/figures/pgd_loss_curves.png" alt="PGD surrogate loss curves over optimization steps" width="65%">
+</p>
+
+<p align="center"><em>PGD lowers the affirmative-prefix surrogate loss, but this optimization signal does not translate into higher direct harmful-compliance ASR.</em></p>
 
 | Condition | ASR | Mean score | Mean LPIPS |
 |---|---:|---:|---:|
