@@ -1,0 +1,7 @@
+condition,n,asr_improved,asr_degraded,asr_unchanged,mean_score_delta,sign_test_p
+random_4,45,0,1,44,-0.0667,1.0000
+random_8,45,0,0,45,0.0000,
+fgsm_4,45,0,0,45,0.0000,
+fgsm_8,45,0,0,45,0.0000,
+pgd_4,45,1,6,38,0.0000,0.1250
+pgd_8,45,2,13,30,-0.2222,0.0074

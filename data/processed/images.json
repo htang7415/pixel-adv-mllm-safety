@@ -1,0 +1,17 @@
+[
+  {
+    "coco_id": "000000000139",
+    "scene_type": "indoor",
+    "path": "data/processed/seed_images/000000000139.jpg"
+  },
+  {
+    "coco_id": "000000000285",
+    "scene_type": "outdoor",
+    "path": "data/processed/seed_images/000000000285.jpg"
+  },
+  {
+    "coco_id": "000000000632",
+    "scene_type": "object-centered",
+    "path": "data/processed/seed_images/000000000632.jpg"
+  }
+]

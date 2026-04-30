@@ -1,12 +1,13 @@
-data/
-results/
 __pycache__/
 *.pyc
 *.pyo
+*.zip
 writing
+report/
 .claude
 .vscode
 RESULTS.md
 /report
+data/coco/
 /.*/
 .agents
